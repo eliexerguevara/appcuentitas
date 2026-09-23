@@ -55,3 +55,10 @@ export function getMonthName(monthNumber) {
     ];
     return months[monthNumber - 1] || '';
 }
+// Formatear dólares: US$ 1.234,56
+export function formatUSD(amount) {
+    return 'US$ ' + new Intl.NumberFormat('es-AR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(Number(amount) || 0);
+}

@@ -112,6 +112,8 @@ export default function ExportScreen() {
         'Valor Cuota': trans.montoCuota || '',
         'Primera Cuota': trans.primerMesCuota || '',
         'Comisión': trans.comision || '',
+        'Monto USD': trans.montoUSD || '',
+        'Tasa': trans.tasa || '',
         'Notas': trans.notas || ''
       }));
 
@@ -189,6 +191,7 @@ export default function ExportScreen() {
         'Nombre': account.nombre,
         'Tipo': account.tipo === 'caja' ? 'CAJA' : account.tipo === 'deuda' ? 'DEUDA' : 'TARJETA',
         'Saldo': account.saldo,
+        'Moneda': account.moneda || 'ARS',
         'Límite': account.limite || '',
         'Fecha Creación': account.fechaCreacion ? 
           new Date(account.fechaCreacion).toISOString().split('T')[0] : ''

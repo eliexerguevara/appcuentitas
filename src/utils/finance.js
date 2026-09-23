@@ -404,7 +404,8 @@ export const recomendaciones = (transactions, accounts, key = currentMonthKey(),
     });
 
   // 8. Deuda mayor al dinero disponible
-  const enCuentas = accounts.filter(a => a.tipo === 'caja').reduce((s, a) => s + (a.saldo || 0), 0);
+  const tasa = tasaDe(savings);
+  const enCuentas = accounts.filter(a => a.tipo === 'caja').reduce((s, a) => s + saldoEnPesos(a, tasa), 0);
   if (deudaTotal > 0 && deudaTotal > enCuentas) {
     recs.push({
       nivel: 'alerta',
@@ -594,4 +595,28 @@ export const sugerirTopes = (transactions, key = currentMonthKey()) => {
       .filter(([, v]) => v > 0)
       .map(([k, v]) => [k, Math.ceil(v / 1000) * 1000])
   );
+};
+
+// ---------- Cuentas en dólares ----------
+
+// Una cuenta en dólares guarda su saldo en US$; los movimientos guardan además
+// el equivalente en pesos (según la tasa del día) para que todo lo demás siga en pesos.
+export const TASA_POR_DEFECTO = 1000;
+export const esUSD = (account) => account?.moneda === 'USD';
+export const tasaDe = (savings = {}) => Number(savings.cotizacionUSD) || TASA_POR_DEFECTO;
+export const saldoEnPesos = (account, tasa) =>
+  esUSD(account) ? (account.saldo || 0) * tasa : (account.saldo || 0);
+export const redondear = (n) => Math.round(n * 100) / 100;
+
+// Montos de un movimiento que involucra una cuenta en dólares.
+// - `montoPesos`: equivalente en pesos (lo que usan gráficas y presupuesto)
+// - `montoUSD`: el lado en dólares (null si no hay cuenta en dólares)
+// - `montoOrigen`: lo que se descuenta o suma en la cuenta de origen, en su moneda
+export const calcularMontos = ({ origenUSD, destinoUSD, monedaInput, montoIngresado, tasa }) => {
+  const enDolares = origenUSD && monedaInput === 'USD';
+  const montoUSD = origenUSD
+    ? (enDolares ? montoIngresado : redondear(montoIngresado / tasa))
+    : (destinoUSD ? redondear(montoIngresado / tasa) : null);
+  const montoPesos = enDolares ? redondear(montoIngresado * tasa) : montoIngresado;
+  return { montoUSD, montoPesos, montoOrigen: origenUSD ? montoUSD : montoPesos };
 };

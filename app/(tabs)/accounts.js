@@ -10,13 +10,16 @@ import {
 } from 'react-native';
 import { PLACEHOLDER_COLOR } from '../../src/styles/global';
 import { useFocusEffect } from '@react-navigation/native';
-import { getDocs, addDoc, deleteDoc, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
+import { getDoc, getDocs, addDoc, deleteDoc, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { ensureHousehold, dataCol, dataDoc } from '../../src/services/household';
-import { formatCurrency } from '../../src/utils/formatters';
+import { formatCurrency, formatUSD } from '../../src/utils/formatters';
 import { Alert } from '../../src/utils/dialog';
 import {
   COMISION_TRANSFERENCIA_TARJETA,
+  esUSD,
+  saldoEnPesos,
+  tasaDe,
   todayISO,
   infoTarjeta,
   currentMonthKey,
@@ -40,6 +43,8 @@ export default function AccountsScreen() {
 
   // Estados del formulario
   const [tipoCuenta, setTipoCuenta] = useState('caja');
+  const [moneda, setMoneda] = useState('ARS');
+  const [tasa, setTasa] = useState(tasaDe());
   const [nombreCuenta, setNombreCuenta] = useState('');
   const [saldoInicial, setSaldoInicial] = useState('');
   const [limite, setLimite] = useState('');
@@ -68,10 +73,12 @@ export default function AccountsScreen() {
 
     try {
       await ensureHousehold();
-      const [accountsSnapshot, transactionsSnapshot] = await Promise.all([
+      const [accountsSnapshot, transactionsSnapshot, savingsDoc] = await Promise.all([
         getDocs(dataCol('accounts')),
         getDocs(dataCol('transactions')),
+        getDoc(dataDoc('data', 'savings')),
       ]);
+      setTasa(tasaDe(savingsDoc.exists() ? savingsDoc.data() : {}));
       setAccounts(accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       setTransactions(transactionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (error) {
@@ -131,6 +138,10 @@ export default function AccountsScreen() {
           : parseMonto(saldoInicial),
       };
 
+      if (tipoCuenta === 'caja') {
+        accountData.moneda = moneda;
+      }
+
       if (tipoCuenta === 'tarjeta') {
         accountData.limite = parseMonto(limite);
         accountData.diaCierre = dia(diaCierre);
@@ -165,6 +176,7 @@ export default function AccountsScreen() {
 
   const resetForm = () => {
     setTipoCuenta('caja');
+    setMoneda('ARS');
     setNombreCuenta('');
     setSaldoInicial('');
     setLimite('');
@@ -182,6 +194,7 @@ export default function AccountsScreen() {
   const startEdit = (account) => {
     setEditingId(account.id);
     setTipoCuenta(account.tipo);
+    setMoneda(esUSD(account) ? 'USD' : 'ARS');
     setNombreCuenta(account.nombre);
     if (account.tipo === 'deuda') {
       setMontoTotal(String(account.montoTotal || infoTarjeta(account).deuda));
@@ -203,7 +216,7 @@ export default function AccountsScreen() {
 
   const deleteAccount = (account) => {
     const aviso = account.saldo !== 0
-      ? `Esta cuenta tiene saldo ${formatCurrency(account.saldo)}. `
+      ? `Esta cuenta tiene saldo ${esUSD(account) ? formatUSD(account.saldo) : formatCurrency(account.saldo)}. `
       : '';
     Alert.alert(
       'Eliminar Cuenta',
@@ -290,7 +303,7 @@ export default function AccountsScreen() {
   const deudasFinalizadas = accounts.filter(a => a.tipo === 'deuda' && a.finalizada);
   const totalDeudas = deudas.reduce((s, a) => s + infoTarjeta(a).deuda, 0);
   const tarjetas = accounts.filter(a => a.tipo === 'tarjeta');
-  const totalCaja = cajas.reduce((s, a) => s + (a.saldo || 0), 0);
+  const totalCaja = cajas.reduce((s, a) => s + saldoEnPesos(a, tasa), 0);
   const deudaTarjetas = tarjetas.reduce((s, a) => s + infoTarjeta(a).deuda, 0);
   const creditoDisponible = tarjetas.reduce((s, a) => s + Math.max(0, infoTarjeta(a).disponible || 0), 0);
   const mesActual = currentMonthKey();
@@ -437,7 +450,7 @@ export default function AccountsScreen() {
             </TouchableOpacity>
             <Text style={[styles.label, { marginTop: 8 }]}>Desde la cuenta</Text>
             <View style={styles.chips}>
-              {cajas.map(c => (
+              {cajas.filter(c => !esUSD(c)).map(c => (
                 <TouchableOpacity
                   key={c.id}
                   style={[styles.chip, pagoCuentaId === c.id && styles.chipActive]}
@@ -507,9 +520,27 @@ export default function AccountsScreen() {
       </Campo>
 
       {tipoCuenta === 'caja' && (
-        <Campo label={editingId ? 'Saldo actual' : 'Saldo inicial'}>
-          <TextInput placeholderTextColor={PLACEHOLDER_COLOR} style={styles.input} value={saldoInicial} onChangeText={setSaldoInicial} placeholder="0" keyboardType="numeric" />
-        </Campo>
+        <>
+          <Campo label="Moneda">
+            <View style={styles.chips}>
+              {[['ARS', 'Pesos ($)'], ['USD', 'Dólares (US$)']].map(([key, label]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.chip, moneda === key && styles.chipActive]}
+                  onPress={() => setMoneda(key)}
+                >
+                  <Text style={[styles.chipText, moneda === key && styles.chipTextActive]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Campo>
+          <Campo
+            label={`${editingId ? 'Saldo actual' : 'Saldo inicial'} (${moneda === 'USD' ? 'US$' : '$'})`}
+            help={moneda === 'USD' ? `Se muestra también en pesos con la tasa de la solapa Dólares ($${tasa}).` : undefined}
+          >
+            <TextInput placeholderTextColor={PLACEHOLDER_COLOR} style={styles.input} value={saldoInicial} onChangeText={setSaldoInicial} placeholder="0" keyboardType="numeric" />
+          </Campo>
+        </>
       )}
 
       {tipoCuenta === 'tarjeta' && (
@@ -605,19 +636,27 @@ export default function AccountsScreen() {
 
         {/* Cuentas */}
         {cajas.length > 0 && <Text style={styles.sectionTitle}>Cuentas</Text>}
-        {cajas.map(account => (
-          <View key={account.id} style={[styles.walletCard, { backgroundColor: theme.cardCuenta }]}>
-            <View style={styles.walletHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
-                <Ionicons name="business-outline" size={18} color={theme.cardCuentaSoft} />
-                <Text style={[styles.walletName, { color: theme.cardCuentaSoft }]} numberOfLines={1}>{account.nombre}</Text>
+        {cajas.map(account => {
+          const usd = esUSD(account);
+          const soft = usd ? theme.cardUsdSoft : theme.cardCuentaSoft;
+          return (
+            <View key={account.id} style={[styles.walletCard, { backgroundColor: usd ? theme.cardUsd : theme.cardCuenta }]}>
+              <View style={styles.walletHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+                  <Ionicons name={usd ? 'logo-usd' : 'business-outline'} size={18} color={soft} />
+                  <Text style={[styles.walletName, { color: soft }]} numberOfLines={1}>{account.nombre}</Text>
+                </View>
+                {renderAcciones(account)}
               </View>
-              {renderAcciones(account)}
+              <Text style={[styles.walletAmount, account.saldo < 0 && { color: '#F7C1C1' }]}>
+                {usd ? formatUSD(account.saldo) : formatCurrency(account.saldo)}
+              </Text>
+              <Text style={[styles.walletMeta, { color: soft }]}>
+                {usd ? `≈ ${formatCurrency(account.saldo * tasa)} (a $${tasa})` : 'Disponible'}
+              </Text>
             </View>
-            <Text style={[styles.walletAmount, account.saldo < 0 && { color: '#F7C1C1' }]}>{formatCurrency(account.saldo)}</Text>
-            <Text style={[styles.walletMeta, { color: theme.cardCuentaSoft }]}>Disponible</Text>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Tarjetas */}
         {tarjetas.length > 0 && <Text style={styles.sectionTitle}>Tarjetas de crédito</Text>}

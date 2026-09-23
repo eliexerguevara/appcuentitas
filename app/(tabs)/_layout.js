@@ -47,13 +47,20 @@ export default function TabLayout() {
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border, height: 62, paddingBottom: 8, paddingTop: 6 },
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: 'Inicio', tabBarIcon: icono('home') }} />
       <Tabs.Screen name="transactions" options={{ title: 'Movimientos', tabBarIcon: icono('list') }} />
       <Tabs.Screen name="budget" options={{ title: 'Presupuesto', tabBarIcon: icono('pie-chart') }} />
       <Tabs.Screen name="accounts" options={{ title: 'Billetera', tabBarIcon: icono('wallet') }} />
+      <Tabs.Screen
+        name="usd"
+        options={{
+          title: 'Dólares',
+          tabBarIcon: ({ color }) => <Ionicons name="logo-usd" size={21} color={color} />,
+        }}
+      />
       <Tabs.Screen name="more" options={{ title: 'Más', tabBarIcon: icono('ellipsis-horizontal-circle') }} />
 
       <Tabs.Screen name="savings" options={pantallaSecundaria('Ahorros')} />

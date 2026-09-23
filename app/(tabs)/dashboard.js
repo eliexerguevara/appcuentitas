@@ -26,6 +26,8 @@ import {
   proyeccionCuotas,
   recomendaciones,
   addMonths,
+  saldoEnPesos,
+  tasaDe,
 } from '../../src/utils/finance';
 import { theme, shadow, iconoCategoria, nombreCategoria } from '../../src/styles/theme';
 import MonthPicker from '../../src/components/MonthPicker';
@@ -81,7 +83,7 @@ export default function DashboardScreen() {
 
   const stats = monthStats(transactions, mes);
   const tarjetas = accounts.filter(a => a.tipo === 'tarjeta');
-  const enCuentas = accounts.filter(a => a.tipo === 'caja').reduce((s, a) => s + (a.saldo || 0), 0);
+  const enCuentas = accounts.filter(a => a.tipo === 'caja').reduce((s, a) => s + saldoEnPesos(a, tasaDe(savings)), 0);
   const deudaTarjetas = tarjetas.reduce((s, a) => s + infoTarjeta(a).deuda, 0);
   const deudasPersonales = accounts
     .filter(a => a.tipo === 'deuda' && !a.finalizada)

@@ -170,7 +170,8 @@ export default function SavingsScreen() {
   };
 
   // ---------- Compra / venta de dólares ----------
-  const cuentasCaja = accounts.filter(acc => acc.tipo === 'caja');
+  // Compra/venta de dólares de ahorro: los pesos salen o entran de una cuenta en pesos
+  const cuentasCaja = accounts.filter(acc => acc.tipo === 'caja' && acc.moneda !== 'USD');
 
   const resetForm = () => {
     setTipoUSD('ingreso_usd');

@@ -26,6 +26,8 @@ export const theme = {
   cardCuentaSoft: '#B5D4F4',
   cardTarjeta: '#3C3489',
   cardTarjetaSoft: '#CECBF6',
+  cardUsd: '#0F6E56',
+  cardUsdSoft: '#9FE1CB',
   cardDeuda: '#993C1D',
   cardDeudaSoft: '#F5C4B3',
 

@@ -17,7 +17,7 @@ import { theme } from '../../src/styles/theme';
 import { getDoc, getDocs, doc, writeBatch, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { ensureHousehold, dataCol, dataDoc } from '../../src/services/household';
-import { formatCurrency } from '../../src/utils/formatters';
+import { formatCurrency, formatUSD } from '../../src/utils/formatters';
 import { Alert } from '../../src/utils/dialog';
 import {
   CATEGORIAS_GASTO,
@@ -26,6 +26,10 @@ import {
   OPCIONES_CUOTAS,
   TIPOS,
   COMISION_TRANSFERENCIA_TARJETA,
+  calcularMontos,
+  esUSD,
+  redondear,
+  tasaDe,
   addMonths,
   currentMonthKey,
   esMovimientoAhorro,
@@ -53,6 +57,9 @@ const parseMonto = (v) => parseFloat(String(v).replace(',', '.'));
 const accountSubtitle = (option) => {
   if (option.tipo === 'deuda') {
     return `Debés ${formatCurrency(infoTarjeta(option).deuda)}`;
+  }
+  if (esUSD(option)) {
+    return formatUSD(option.saldo);
   }
   if (option.tipo === 'tarjeta') {
     const { disponible, deuda } = infoTarjeta(option);
@@ -143,7 +150,7 @@ const DropdownList = ({
                     option.tipo === 'caja' ? styles.cajaBadge : styles.tarjetaBadge
                   ]}>
                     <Text style={styles.accountTypeText}>
-                      {option.tipo === 'caja' ? 'CUENTA' : option.tipo === 'deuda' ? 'DEUDA' : 'TARJETA'}
+                      {esUSD(option) ? 'US$' : option.tipo === 'caja' ? 'CUENTA' : option.tipo === 'deuda' ? 'DEUDA' : 'TARJETA'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -263,10 +270,13 @@ export default function TransactionsScreen() {
   const [savings, setSavings] = useState({ pesos: 0 });
   const [direccionAhorro, setDireccionAhorro] = useState('guardar');
   const [totalTarjeta, setTotalTarjeta] = useState('');
+  const [monedaInput, setMonedaInput] = useState('USD');
+  const [tasaInput, setTasaInput] = useState('');
 
   useEffect(() => {
     if (params.tipo && TIPOS[params.tipo]) {
       changeTipo(params.tipo);
+      if (params.cuentaId) setCuentaId(String(params.cuentaId));
       scrollRef.current?.scrollTo?.({ y: 0, animated: true });
     }
   }, [params.t]);
@@ -317,7 +327,19 @@ export default function TransactionsScreen() {
   const planMeta = metaAhorro ? planAhorro(transactions, metaAhorro) : null;
   const esCompraConTarjeta = tipo === 'egreso' && cuenta?.tipo === 'tarjeta';
   const cuotasFinal = cuotas === 'otra' ? parseInt(cuotasCustom, 10) || 0 : cuotas;
-  const montoNum = parseMonto(monto);
+  // Cuenta en dólares: el monto se puede cargar en US$ o en $, y se convierte con la tasa.
+  // `montoNum` queda siempre en pesos (lo que usan gráficas, presupuesto y tarjetas en pesos).
+  const tasaGlobal = tasaDe(savings);
+  const tasa = parseMonto(tasaInput) > 0 ? parseMonto(tasaInput) : tasaGlobal;
+  const origenUSD = esUSD(cuenta);
+  const destinoCuenta = accounts.find(acc => acc.id === cuentaDestinoId);
+  const destinoUSD = tipo === 'transferencia' && esUSD(destinoCuenta);
+  const usaTasa = origenUSD || destinoUSD;
+  const montoIngresado = parseMonto(monto);
+  const { montoUSD, montoPesos: montoNum, montoOrigen } = calcularMontos({
+    origenUSD, destinoUSD, monedaInput, montoIngresado, tasa,
+  });
+  const saldoTexto = (acc) => (esUSD(acc) ? formatUSD(acc.saldo) : formatCurrency(acc.saldo));
 
   // Transferencia desde tarjeta de crédito: se cobra una comisión (7% por defecto)
   const esTransferenciaTarjeta = tipo === 'transferencia' && cuenta?.tipo === 'tarjeta';
@@ -402,15 +424,15 @@ export default function TransactionsScreen() {
         transactionData.cuotas = cuotasFinal;
         transactionData.montoCuota = Math.round((montoNum / cuotasFinal) * 100) / 100;
         transactionData.primerMesCuota = primerMesCuota;
-      } else if (cuenta.saldo < montoNum) {
-        Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${formatCurrency(cuenta.saldo)}`);
+      } else if (cuenta.saldo < montoOrigen) {
+        Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${saldoTexto(cuenta)}`);
         return;
       }
-      movimientos.push([cuentaId, -montoNum]);
+      movimientos.push([cuentaId, -montoOrigen]);
     }
 
     if (tipo === 'ingreso') {
-      movimientos.push([cuentaId, montoNum]);
+      movimientos.push([cuentaId, montoOrigen]);
     }
 
     if (tipo === 'transferencia') {
@@ -437,13 +459,13 @@ export default function TransactionsScreen() {
           return;
         }
         transactionData.comision = Math.round((totalTarjetaNum - montoNum) * 100) / 100;
-        movimientos.push([cuentaId, -totalTarjetaNum], [destino.id, montoNum]);
+        movimientos.push([cuentaId, -totalTarjetaNum], [destino.id, esUSD(destino) ? montoUSD : montoNum]);
       } else {
-        if (cuenta.saldo < montoNum) {
-          Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${formatCurrency(cuenta.saldo)}`);
+        if (cuenta.saldo < montoOrigen) {
+          Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${saldoTexto(cuenta)}`);
           return;
         }
-        movimientos.push([cuentaId, -montoNum], [destino.id, montoNum]);
+        movimientos.push([cuentaId, -montoOrigen], [destino.id, esUSD(destino) ? montoUSD : montoNum]);
       }
     }
 
@@ -484,8 +506,8 @@ export default function TransactionsScreen() {
         Alert.alert('Error', 'Seleccioná la tarjeta o deuda a pagar');
         return;
       }
-      if (cuenta.saldo < montoNum) {
-        Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${formatCurrency(cuenta.saldo)}`);
+      if (cuenta.saldo < montoOrigen) {
+        Alert.alert('Error', `Saldo insuficiente en ${cuenta.nombre}. Disponible: ${saldoTexto(cuenta)}`);
         return;
       }
       const esDeuda = tarjeta.tipo === 'deuda';
@@ -496,12 +518,25 @@ export default function TransactionsScreen() {
       }
       transactionData.categoria = esDeuda ? 'PAGO_DEUDA' : 'PAGO_TARJETA';
       transactionData.tarjetaId = tarjetaId;
-      movimientos.push([cuentaId, -montoNum], [tarjetaId, montoNum]);
+      movimientos.push([cuentaId, -montoOrigen], [tarjetaId, montoNum]);
       // La deuda personal se da por terminada cuando se paga todo
       if (esDeuda && montoNum >= pendiente - 0.001) {
         batch.update(dataDoc('accounts', tarjetaId), { finalizada: true, fechaFinalizada: fecha });
       }
     }
+
+    if (usaTasa) {
+      if (!(tasa > 0)) {
+        Alert.alert('Error', 'Ingresá una tasa de cambio válida');
+        return;
+      }
+      transactionData.monto = redondear(montoNum);
+      transactionData.montoUSD = montoUSD;
+      transactionData.tasa = tasa;
+      if (origenUSD) transactionData.moneda = 'USD';
+    }
+    // Cada cambio de saldo en la moneda de su cuenta, para poder deshacerlo exacto al borrar
+    transactionData.movimientosSaldo = movimientos.map(([id, diff]) => ({ cuentaId: id, diff }));
 
     try {
       setSaving(true);
@@ -539,10 +574,15 @@ export default function TransactionsScreen() {
     setCuotasCustom('');
     setAjusteMes(0);
     setDireccionAhorro('guardar');
+    setMonedaInput('USD');
+    setTasaInput('');
   };
 
   // Diferencias de saldo que hay que deshacer al borrar una transacción
   const reversiones = (t) => {
+    if (Array.isArray(t.movimientosSaldo)) {
+      return t.movimientosSaldo.map(m => [m.cuentaId, -m.diff]);
+    }
     switch (t.tipo) {
       case 'ingreso': return [[t.cuentaId, -t.monto]];
       case 'egreso': return [[t.cuentaId, t.monto]];
@@ -632,6 +672,8 @@ export default function TransactionsScreen() {
   const transaccionesMes = transactions.filter(t => monthKey(t.fecha) === mesFiltro);
   const nombreCuenta = (id) => accounts.find(acc => acc.id === id)?.nombre || 'Cuenta eliminada';
 
+  const cuentasPesos = cuentasCaja.filter(c => !esUSD(c));
+
   const cuentaLabel = {
     ingreso: 'Cuenta donde entra el dinero',
     egreso: 'Pagar con (cuenta o tarjeta)',
@@ -714,7 +756,9 @@ export default function TransactionsScreen() {
         <View style={[styles.formSection, { zIndex: 5000 }]}>
           <Text style={styles.label}>{cuentaLabel}</Text>
           <DropdownList
-            options={tipo === 'egreso' || tipo === 'transferencia' ? [...cuentasCaja, ...tarjetasCredito] : cuentasCaja}
+            options={tipo === 'egreso' || tipo === 'transferencia' ? [...cuentasCaja, ...tarjetasCredito]
+              : tipo === 'ahorro' ? cuentasPesos
+              : cuentasCaja}
             selectedValue={cuentaId}
             onSelect={(id) => { setCuentaId(id); setAjusteMes(0); setTotalTarjeta(''); }}
             placeholder="Seleccionar cuenta"
@@ -761,7 +805,10 @@ export default function TransactionsScreen() {
 
         {/* Monto */}
         <View style={[styles.formSection, { zIndex: 3000 }]}>
-          <Text style={styles.label}>{esCompraConTarjeta ? 'Monto total de la compra' : 'Monto'}</Text>
+          <Text style={styles.label}>
+            {esCompraConTarjeta ? 'Monto total de la compra'
+              : origenUSD ? `Monto (en ${monedaInput === 'USD' ? 'US$' : '$'})` : 'Monto'}
+          </Text>
           <TextInput
             placeholderTextColor={PLACEHOLDER_COLOR}
             style={styles.input}
@@ -771,6 +818,45 @@ export default function TransactionsScreen() {
             keyboardType="numeric"
           />
         </View>
+
+        {/* Cuenta en dólares: moneda del monto y tasa de cambio */}
+        {usaTasa && (
+          <View style={styles.usdBox}>
+            {origenUSD && (
+              <>
+                <Text style={styles.label}>El monto está en</Text>
+                <View style={styles.chips}>
+                  {[['USD', 'Dólares (US$)'], ['ARS', 'Pesos ($)']].map(([key, label]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.chip, monedaInput === key && styles.chipActive]}
+                      onPress={() => setMonedaInput(key)}
+                    >
+                      <Text style={[styles.chipText, monedaInput === key && styles.chipTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+            <Text style={[styles.label, { marginTop: 10 }]}>Tasa de cambio (1 US$ = $)</Text>
+            <TextInput
+              placeholderTextColor={PLACEHOLDER_COLOR}
+              style={styles.input}
+              value={tasaInput}
+              onChangeText={setTasaInput}
+              placeholder={String(tasaGlobal)}
+              keyboardType="numeric"
+            />
+            {montoIngresado > 0 && (
+              <Text style={styles.usdResumen}>
+                {formatUSD(montoUSD)} = {formatCurrency(montoNum)}
+                {destinoUSD && !origenUSD ? ` → llegan ${formatUSD(montoUSD)} a ${destinoCuenta.nombre}` : ''}
+                {origenUSD && tipo === 'transferencia' && destinoCuenta && !esUSD(destinoCuenta) ? ` → llegan ${formatCurrency(montoNum)} a ${destinoCuenta.nombre}` : ''}
+              </Text>
+            )}
+            <Text style={styles.help}>Por defecto se usa la tasa de la solapa Dólares. Cambiala acá si hoy fue distinta.</Text>
+          </View>
+        )}
 
         {/* Comisión al sacar plata de la tarjeta */}
         {esTransferenciaTarjeta && (
@@ -988,6 +1074,11 @@ export default function TransactionsScreen() {
                   {transaction.categoria} • {nombreCuenta(transaction.cuentaId)}
                   {destino ? ` → ${nombreCuenta(destino)}` : ''} • {formatDate(transaction.fecha)}
                 </Text>
+                {Number(transaction.montoUSD) > 0 && (
+                  <Text style={styles.cuotasTag}>
+                    {formatUSD(transaction.montoUSD)} a ${transaction.tasa}
+                  </Text>
+                )}
                 {Number(transaction.comision) > 0 && (
                   <Text style={styles.cuotasTag}>
                     Comisión tarjeta {formatCurrency(transaction.comision)} • salió {formatCurrency(transaction.monto + Number(transaction.comision))}
@@ -1218,6 +1309,21 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: 'white',
+  },
+  // Dólares
+  usdBox: {
+    backgroundColor: '#e6f4ea',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#b7e1c1',
+  },
+  usdResumen: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1e6b32',
   },
   // Ahorro
   ahorroBox: {
