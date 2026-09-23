@@ -1,0 +1,67 @@
+import { StyleSheet, Platform } from 'react-native';
+
+export const globalStyles = StyleSheet.create({
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      }
+    })
+  },
+  
+  button: {
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  buttonPrimary: {
+    backgroundColor: '#667eea',
+  },
+  
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  input: {
+    borderWidth: 2,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  }
+});
+
+export const colors = {
+  primary: '#667eea',
+  success: '#28a745',
+  danger: '#dc3545',
+  warning: '#ffc107',
+  info: '#17a2b8',
+  dark: '#343a40',
+  light: '#f8f9fa'
+};
+// Color de los textos de ejemplo (placeholder) en los campos: gris claro para
+// que no se confundan con un valor ya cargado.
+export const PLACEHOLDER_COLOR = '#b8bec5';
