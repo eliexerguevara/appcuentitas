@@ -16,10 +16,14 @@ import { auth, db } from '../../firebase/config';
 import { ensureHousehold, dataCol, dataDoc } from '../../src/services/household';
 import { formatCurrency, formatDate, getMonthName } from '../../src/utils/formatters';
 import { Alert } from '../../src/utils/dialog';
+import MonthPicker from '../../src/components/MonthPicker';
 import {
+  addMonths,
   currentMonthKey,
-  metaAnualDe,
-  planAnualAhorro,
+  metaAhorroDe,
+  monthDiff,
+  monthLabel,
+  planAhorro,
   planDeAhorro,
   sugerirMetaAhorro,
   todayISO,
@@ -62,6 +66,7 @@ export default function SavingsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editandoMeta, setEditandoMeta] = useState(false);
   const [metaInput, setMetaInput] = useState('');
+  const [mesObjetivoInput, setMesObjetivoInput] = useState(`${currentMonthKey().slice(0, 4)}-12`);
   const [cotizacionInput, setCotizacionInput] = useState('');
   const [verMeses, setVerMeses] = useState(false);
 
@@ -107,9 +112,12 @@ export default function SavingsScreen() {
   // ---------- Meta anual ----------
   const mesActual = currentMonthKey();
   const anio = mesActual.slice(0, 4);
-  const metaAnual = metaAnualDe(savings, mesActual);
-  const metaSugerida = sugerirMetaAhorro(transactions, mesActual) * 12;
-  const plan = metaAnual > 0 ? planAnualAhorro(transactions, metaAnual, mesActual) : null;
+  const meta = metaAhorroDe(savings, mesActual);
+  const metaAnual = meta ? meta.monto : 0;
+  const plan = meta ? planAhorro(transactions, meta, mesActual) : null;
+  // Sugerencia: 20% de los ingresos por cada mes hasta el mes objetivo elegido
+  const mesesHastaObjetivo = Math.max(1, monthDiff(mesActual, mesObjetivoInput) + 1);
+  const metaSugerida = sugerirMetaAhorro(transactions, mesActual) * mesesHastaObjetivo;
   const recortes = plan && plan.faltaAnio > 0
     ? planDeAhorro(transactions, Math.max(plan.faltaMes, plan.cuotaSiguientes), mesActual).plan
     : [];
@@ -128,12 +136,26 @@ export default function SavingsScreen() {
 
   const guardarMeta = async (valor) => {
     const n = typeof valor === 'number' ? valor : parseMonto(valor);
-    if (isNaN(n) || n < 0) {
+    if (isNaN(n) || n <= 0) {
       Alert.alert('Error', 'Ingresá un monto válido');
       return;
     }
-    await guardarCampo({ metasAnuales: { ...(savings.metasAnuales || {}), [anio]: n } });
+    if (monthDiff(mesActual, mesObjetivoInput) < 0) {
+      Alert.alert('Error', 'El mes objetivo no puede ser un mes que ya pasó');
+      return;
+    }
+    // Se cuenta lo ahorrado desde enero del año en curso (o desde donde empezó la meta actual)
+    const mesInicio = meta && monthDiff(meta.mesInicio, mesActual) >= 0 && !plan?.vencida
+      ? meta.mesInicio
+      : `${anio}-01`;
+    await guardarCampo({ metaAhorro: { monto: n, mesInicio, mesObjetivo: mesObjetivoInput } });
     setEditandoMeta(false);
+  };
+
+  const empezarEdicion = () => {
+    setMetaInput(meta ? String(meta.monto) : '');
+    setMesObjetivoInput(meta && !plan?.vencida ? meta.mesObjetivo : `${anio}-12`);
+    setEditandoMeta(true);
   };
 
   const guardarCotizacion = async () => {
@@ -265,7 +287,15 @@ export default function SavingsScreen() {
 
       {/* Meta anual */}
       <View style={styles.metaCard}>
-        <Text style={styles.metaTitle}>🎯 Meta de ahorro {anio}</Text>
+        <Text style={styles.metaTitle}>
+          🎯 Meta de ahorro{meta ? ` para ${monthLabel(meta.mesObjetivo)}` : ''}
+        </Text>
+
+        {plan?.vencida && (
+          <Text style={[styles.metaHint, { color: '#dc3545', fontWeight: 'bold' }]}>
+            La fecha de esta meta ya pasó ({plan.faltaAnio > 0 ? `faltaron ${formatCurrency(plan.faltaAnio)}` : '¡se cumplió!'}). Poné una meta nueva.
+          </Text>
+        )}
 
         {plan ? (
           <>
@@ -278,24 +308,27 @@ export default function SavingsScreen() {
             </View>
             <Text style={styles.metaHint}>
               {Math.round(plan.progreso * 100)}% cumplido
-              {plan.faltaAnio > 0 ? ` • faltan ${formatCurrency(plan.faltaAnio)}` : ' • ¡Meta del año cumplida! 🎉'}
+              {plan.faltaAnio > 0 ? ` • faltan ${formatCurrency(plan.faltaAnio)}` : ' • ¡Meta cumplida! 🎉'}
+            </Text>
+            <Text style={styles.metaHint}>
+              Cuenta lo ahorrado desde {monthLabel(plan.mesInicio)}.
             </Text>
 
-            <View style={styles.cuotaBox}>
+            {!plan.vencida && <View style={styles.cuotaBox}>
               <Text style={styles.cuotaLabel}>Este mes te toca ahorrar</Text>
               <Text style={styles.cuotaValue}>{formatCurrency(plan.cuotaMes)}</Text>
               <Text style={styles.metaHint}>
                 Llevás {formatCurrency(plan.aporteMes)} este mes
                 {plan.faltaMes > 0 ? ` • te faltan ${formatCurrency(plan.faltaMes)}` : ' • ¡cumplido! 🎉'}
               </Text>
-            </View>
+            </View>}
 
             {plan.mesesDespues > 0 && (
               <View style={styles.cuotaBox}>
                 <Text style={styles.cuotaLabel}>Desde el mes que viene</Text>
                 <Text style={styles.cuotaValue}>{formatCurrency(plan.cuotaSiguientes)} / mes</Text>
                 <Text style={styles.metaHint}>
-                  Durante {plan.mesesDespues} {plan.mesesDespues === 1 ? 'mes' : 'meses'}. Se recalcula solo cada vez que guardás o retirás ahorro.
+                  Durante {plan.mesesDespues} {plan.mesesDespues === 1 ? 'mes' : 'meses'}, hasta {monthLabel(plan.mesObjetivo)}. Se recalcula solo cada vez que guardás o retirás ahorro.
                 </Text>
               </View>
             )}
@@ -322,7 +355,7 @@ export default function SavingsScreen() {
                 {plan.filas.map(f => (
                   <View key={f.key} style={[styles.filaMes, f.estado === 'actual' && styles.filaActual]}>
                     <Text style={styles.colMes}>
-                      {getMonthName(parseInt(f.key.slice(5, 7), 10))}{f.estado === 'actual' ? ' (hoy)' : ''}
+                      {monthLabel(f.key)}{f.estado === 'actual' ? ' (hoy)' : ''}
                     </Text>
                     <Text style={[styles.colNum, f.aporte < 0 && { color: '#dc3545' }]}>
                       {f.estado === 'futuro' ? '—' : formatCurrency(f.aporte)}
@@ -348,34 +381,48 @@ export default function SavingsScreen() {
           </>
         ) : (
           <Text style={styles.metaHint}>
-            Poné cuánto quieren ahorrar en {anio} y la app te dice cuánto separar cada mes.
-            {metaSugerida > 0 ? ` Sugerencia: ${formatCurrency(metaSugerida)} (20% de sus ingresos).` : ''}
+            Poné cuánto quieren tener ahorrado y para qué mes, y la app te dice cuánto separar cada mes.
+            {metaSugerida > 0 ? ` Sugerencia para ${monthLabel(mesObjetivoInput)}: ${formatCurrency(metaSugerida)} (20% de sus ingresos).` : ''}
           </Text>
         )}
 
-        {editandoMeta || !plan ? (
-          <View style={styles.metaEditRow}>
+        {editandoMeta || !plan || plan.vencida ? (
+          <View style={styles.metaForm}>
+            <Text style={styles.label}>¿Cuánto quieren tener ahorrado?</Text>
             <TextInput
               placeholderTextColor={PLACEHOLDER_COLOR}
-              style={[styles.input, { flex: 1, minWidth: 150 }]}
+              style={styles.input}
               value={metaInput}
               onChangeText={setMetaInput}
-              placeholder={`Meta para ${anio}`}
+              placeholder="Ej: 3000000"
               keyboardType="numeric"
             />
-            <TouchableOpacity style={styles.smallButton} onPress={() => guardarMeta(metaInput)}>
-              <Text style={styles.smallButtonText}>Guardar meta</Text>
-            </TouchableOpacity>
+            <Text style={[styles.label, { marginTop: 12 }]}>¿Para qué mes?</Text>
+            <MonthPicker
+              value={mesObjetivoInput}
+              onChange={(k) => setMesObjetivoInput(monthDiff(mesActual, k) < 0 ? mesActual : k)}
+            />
+            <Text style={styles.metaHint}>
+              {mesesHastaObjetivo} {mesesHastaObjetivo === 1 ? 'mes' : 'meses'} desde hoy
+              {parseMonto(metaInput) > 0 ? ` • unos ${formatCurrency(parseMonto(metaInput) / mesesHastaObjetivo)} por mes si empiezan de cero` : ''}
+            </Text>
+            <View style={styles.metaEditRow}>
+              {editandoMeta && (
+                <TouchableOpacity style={[styles.smallButton, { backgroundColor: '#6c757d' }]} onPress={() => setEditandoMeta(false)}>
+                  <Text style={styles.smallButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.smallButton} onPress={() => guardarMeta(metaInput)}>
+                <Text style={styles.smallButtonText}>Guardar meta</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => { setMetaInput(String(metaAnual)); setEditandoMeta(true); }}
-          >
-            <Text style={styles.linkText}>✏️ Cambiar meta</Text>
+          <TouchableOpacity style={styles.linkButton} onPress={empezarEdicion}>
+            <Text style={styles.linkText}>✏️ Cambiar monto o mes</Text>
           </TouchableOpacity>
         )}
-        {!plan && metaSugerida > 0 && (
+        {(!plan || plan.vencida) && metaSugerida > 0 && (
           <TouchableOpacity style={styles.linkButton} onPress={() => guardarMeta(metaSugerida)}>
             <Text style={styles.linkText}>Usar sugerida ({formatCurrency(metaSugerida)})</Text>
           </TouchableOpacity>
@@ -542,6 +589,12 @@ const styles = StyleSheet.create({
   cuotaBox: { backgroundColor: '#f1fafb', borderRadius: 8, padding: 12, marginTop: 10 },
   cuotaLabel: { fontSize: 13, color: '#555' },
   cuotaValue: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 2 },
+  metaForm: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
   metaEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   linkButton: { paddingVertical: 6, marginTop: 4 },
   linkText: { color: '#667eea', fontWeight: '600', fontSize: 13 },

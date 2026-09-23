@@ -273,8 +273,8 @@ export const recomendaciones = (transactions, accounts, key = currentMonthKey(),
   }
 
   // 2. Meta de ahorro (la cuota del mes según la meta anual, o 20% de los ingresos)
-  const metaAnual = metaAnualDe(savings, key);
-  const planAnual = metaAnual > 0 ? planAnualAhorro(transactions, metaAnual, key) : null;
+  const metaAhorro = metaAhorroDe(savings, key);
+  const planAnual = metaAhorro ? planAhorro(transactions, metaAhorro, key) : null;
   const meta = planAnual ? planAnual.cuotaMes : ingresoRef * META_AHORRO;
   if (ingresoRef > 0 && meta > 0) {
     if (mes.ahorro >= meta) {
@@ -436,29 +436,47 @@ export const planDeAhorro = (transactions, meta, key = currentMonthKey()) => {
   return { plan, cubierto: meta - Math.max(0, restante) };
 };
 
-// ---------- Meta anual de ahorro ----------
+// ---------- Meta de ahorro (monto + mes objetivo) ----------
 
-export const metaAnualDe = (savings = {}, key = currentMonthKey()) =>
-  Number((savings.metasAnuales || {})[key.slice(0, 4)]) || 0;
+// Devuelve { monto, mesInicio, mesObjetivo } o null si no hay meta.
+// Se cuenta lo ahorrado desde `mesInicio` hasta `mesObjetivo` inclusive.
+// Compatibilidad: las metas anuales viejas (metasAnuales[año]) se leen como
+// una meta de enero a diciembre de ese año.
+export const metaAhorroDe = (savings = {}, key = currentMonthKey()) => {
+  const m = savings.metaAhorro;
+  if (m && Number(m.monto) > 0 && m.mesObjetivo) {
+    return {
+      monto: Number(m.monto),
+      mesInicio: m.mesInicio || `${key.slice(0, 4)}-01`,
+      mesObjetivo: m.mesObjetivo,
+    };
+  }
+  const anio = key.slice(0, 4);
+  const anual = Number((savings.metasAnuales || {})[anio]) || 0;
+  return anual > 0 ? { monto: anual, mesInicio: `${anio}-01`, mesObjetivo: `${anio}-12` } : null;
+};
 
-// Cuánto hay que ahorrar cada mes para llegar a la meta del año.
+// Cuánto hay que ahorrar cada mes para llegar a la meta en el mes objetivo.
 // Se recalcula con lo realmente aportado (guardado − retirado) mes a mes.
-export const planAnualAhorro = (transactions, metaAnual, key = currentMonthKey()) => {
-  const year = key.slice(0, 4);
-  const mesActual = parseInt(key.slice(5, 7), 10);
-  const meses = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
-  const aportes = meses.map((k, i) => (i < mesActual ? monthStats(transactions, k).ahorro : 0));
+export const planAhorro = (transactions, meta, key = currentMonthKey()) => {
+  const { monto, mesInicio, mesObjetivo } = meta;
+  const totalMeses = Math.max(1, monthDiff(mesInicio, mesObjetivo) + 1);
+  const meses = Array.from({ length: totalMeses }, (_, i) => addMonths(mesInicio, i));
+  const idxActual = monthDiff(mesInicio, key); // posición del mes actual en el plan
+  const aportes = meses.map((k, i) => (i <= idxActual ? monthStats(transactions, k).ahorro : 0));
 
-  const netoAntes = aportes.slice(0, mesActual - 1).reduce((s, x) => s + x, 0);
-  const aporteMes = aportes[mesActual - 1];
-  const netoAnio = netoAntes + aporteMes;
-  const mesesRestantes = 12 - mesActual + 1;
-  const mesesDespues = 12 - mesActual;
+  const netoAntes = aportes.slice(0, Math.max(0, idxActual)).reduce((s, x) => s + x, 0);
+  const dentroDelPlan = idxActual >= 0 && idxActual < totalMeses;
+  const aporteMes = dentroDelPlan ? aportes[idxActual] : 0;
+  const netoAnio = aportes.reduce((s, x) => s + x, 0);
+  const vencida = idxActual >= totalMeses;
+  const mesesRestantes = dentroDelPlan ? totalMeses - idxActual : 0;
+  const mesesDespues = Math.max(0, mesesRestantes - 1);
 
   // Cuota de este mes: lo que falta al empezar el mes, repartido entre los meses que quedan
-  const cuotaMes = Math.max(0, (metaAnual - netoAntes) / mesesRestantes);
+  const cuotaMes = dentroDelPlan ? Math.max(0, (monto - netoAntes) / mesesRestantes) : 0;
   const faltaMes = Math.max(0, cuotaMes - aporteMes);
-  const faltaAnio = Math.max(0, metaAnual - netoAnio);
+  const faltaAnio = Math.max(0, monto - netoAnio);
   // Desde el mes que viene: lo que falta hoy, repartido entre los meses siguientes
   const cuotaSiguientes = mesesDespues > 0 ? faltaAnio / mesesDespues : 0;
 
@@ -467,8 +485,7 @@ export const planAnualAhorro = (transactions, metaAnual, key = currentMonthKey()
   const capacidad = prom.mesesConDatos > 0 ? Math.max(0, prom.ingresos - prom.gastos) : null;
 
   const filas = meses.map((k, i) => {
-    const n = i + 1;
-    const estado = n < mesActual ? 'pasado' : n === mesActual ? 'actual' : 'futuro';
+    const estado = i < idxActual ? 'pasado' : i === idxActual ? 'actual' : 'futuro';
     return {
       key: k,
       estado,
@@ -478,7 +495,10 @@ export const planAnualAhorro = (transactions, metaAnual, key = currentMonthKey()
   });
 
   return {
-    metaAnual,
+    metaAnual: monto,
+    mesInicio,
+    mesObjetivo,
+    vencida,
     netoAnio,
     aporteMes,
     cuotaMes,
@@ -487,7 +507,7 @@ export const planAnualAhorro = (transactions, metaAnual, key = currentMonthKey()
     cuotaSiguientes,
     mesesDespues,
     capacidad,
-    progreso: metaAnual > 0 ? Math.min(1, Math.max(0, netoAnio / metaAnual)) : 0,
+    progreso: monto > 0 ? Math.min(1, Math.max(0, netoAnio / monto)) : 0,
     filas,
   };
 };

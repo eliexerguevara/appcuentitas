@@ -27,8 +27,8 @@ import {
   currentMonthKey,
   esMovimientoAhorro,
   infoTarjeta,
-  metaAnualDe,
-  planAnualAhorro,
+  metaAhorroDe,
+  planAhorro,
   monthKey,
   monthLabel,
   monthStats,
@@ -293,8 +293,8 @@ export default function TransactionsScreen() {
   const deudasActivas = accounts.filter(acc => acc.tipo === 'deuda' && !acc.finalizada);
   const cuenta = accounts.find(acc => acc.id === cuentaId);
   const ahorroPesos = Number(savings.pesos) || 0;
-  const metaAnual = metaAnualDe(savings);
-  const planAhorro = metaAnual > 0 ? planAnualAhorro(transactions, metaAnual) : null;
+  const metaAhorro = metaAhorroDe(savings);
+  const planMeta = metaAhorro ? planAhorro(transactions, metaAhorro) : null;
   const esCompraConTarjeta = tipo === 'egreso' && cuenta?.tipo === 'tarjeta';
   const cuotasFinal = cuotas === 'otra' ? parseInt(cuotasCustom, 10) || 0 : cuotas;
   const montoNum = parseMonto(monto);
@@ -674,11 +674,11 @@ export default function TransactionsScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={styles.ahorroText}>Ahorro en pesos disponible: <Text style={{ fontWeight: 'bold' }}>{formatCurrency(ahorroPesos)}</Text></Text>
-              {planAhorro ? (
+              {planMeta ? (
                 <Text style={styles.ahorroText}>
-                  🎯 Meta {currentMonthKey().slice(0, 4)}: {formatCurrency(planAhorro.netoAnio)} de {formatCurrency(metaAnual)}.
-                  {planAhorro.faltaMes > 0
-                    ? ` Este mes te faltan ${formatCurrency(planAhorro.faltaMes)}.`
+                  🎯 Meta para {monthLabel(metaAhorro.mesObjetivo)}: {formatCurrency(planMeta.netoAnio)} de {formatCurrency(metaAhorro.monto)}.
+                  {planMeta.faltaMes > 0
+                    ? ` Este mes te faltan ${formatCurrency(planMeta.faltaMes)}.`
                     : ' Este mes ya cumpliste. 🎉'}
                 </Text>
               ) : (
