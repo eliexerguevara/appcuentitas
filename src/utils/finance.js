@@ -246,7 +246,7 @@ export const sugerirMetaAhorro = (transactions, key = currentMonthKey()) => {
 };
 
 // Devuelve [{ nivel: 'alerta'|'consejo'|'bien', titulo, texto, monto? }]
-export const recomendaciones = (transactions, accounts, key = currentMonthKey(), savings = {}) => {
+export const recomendaciones = (transactions, accounts, key = currentMonthKey(), savings = {}, topes = {}) => {
   const recs = [];
   const mes = monthStats(transactions, key);
   const prom = promedioMeses(transactions, key, 3);
@@ -383,6 +383,26 @@ export const recomendaciones = (transactions, accounts, key = currentMonthKey(),
     });
   }
 
+  // 7b. Presupuesto por categoría
+  const presupuesto = estadoPresupuesto(transactions, topes, key);
+  presupuesto.excedidas.slice(0, 3).forEach(i => {
+    recs.push({
+      nivel: 'alerta',
+      titulo: `${i.categoria} pasó el tope`,
+      texto: `Llevan ${formatCurrency(i.gastado)} y el tope es ${formatCurrency(i.tope)} (${formatCurrency(-i.restante)} de más).`,
+    });
+  });
+  presupuesto.items
+    .filter(i => i.tope > 0 && i.uso >= 0.85 && i.uso <= 1)
+    .slice(0, 2)
+    .forEach(i => {
+      recs.push({
+        nivel: 'consejo',
+        titulo: `${i.categoria} casi en el tope`,
+        texto: `Usaron el ${pct(i.uso)}. Quedan ${formatCurrency(i.restante)} para el resto del mes.`,
+      });
+    });
+
   // 8. Deuda mayor al dinero disponible
   const enCuentas = accounts.filter(a => a.tipo === 'caja').reduce((s, a) => s + (a.saldo || 0), 0);
   if (deudaTotal > 0 && deudaTotal > enCuentas) {
@@ -510,4 +530,68 @@ export const planAhorro = (transactions, meta, key = currentMonthKey()) => {
     progreso: monto > 0 ? Math.min(1, Math.max(0, netoAnio / monto)) : 0,
     filas,
   };
+};
+
+// ---------- Presupuesto por categoría ----------
+
+export const diasDelMes = (key) => {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+};
+
+// Estado de cada categoría contra su tope del mes.
+// `topes` = { CATEGORIA: monto }. Categorías con gasto pero sin tope también aparecen.
+export const estadoPresupuesto = (transactions, topes = {}, key = currentMonthKey()) => {
+  const stats = monthStats(transactions, key);
+  const gastado = Object.fromEntries(stats.porCategoria.map(c => [c.categoria, c.monto]));
+  const categorias = new Set([
+    ...Object.keys(topes).filter(k => Number(topes[k]) > 0),
+    ...Object.keys(gastado),
+  ]);
+
+  const items = [...categorias]
+    .map(categoria => {
+      const tope = Number(topes[categoria]) || 0;
+      const g = gastado[categoria] || 0;
+      return { categoria, tope, gastado: g, restante: tope - g, uso: tope > 0 ? g / tope : null };
+    })
+    .sort((a, b) =>
+      (b.tope > 0) - (a.tope > 0) || (b.uso ?? 0) - (a.uso ?? 0) || b.gastado - a.gastado);
+
+  const conTope = items.filter(i => i.tope > 0);
+  const totalTope = conTope.reduce((s, i) => s + i.tope, 0);
+  const gastadoConTope = conTope.reduce((s, i) => s + i.gastado, 0);
+  const gastadoSinTope = items.filter(i => i.tope === 0).reduce((s, i) => s + i.gastado, 0);
+
+  const esActual = key === currentMonthKey();
+  const totalDias = diasDelMes(key);
+  const diasRestantes = esActual ? totalDias - new Date().getDate() + 1 : 0;
+  // Lo que queda del presupuesto repartido entre los días que faltan
+  const quedaTotal = totalTope - gastadoConTope;
+  const porDia = diasRestantes > 0 ? Math.max(0, quedaTotal) / diasRestantes : 0;
+
+  return {
+    items,
+    totalTope,
+    gastadoConTope,
+    gastadoSinTope,
+    totalGastado: stats.gastos,
+    quedaTotal,
+    diasRestantes,
+    porDia,
+    excedidas: conTope.filter(i => i.gastado > i.tope),
+  };
+};
+
+// Topes sugeridos: promedio de los últimos 3 meses por categoría, redondeado hacia arriba a miles.
+export const sugerirTopes = (transactions, key = currentMonthKey()) => {
+  const prom = promedioMeses(transactions, key, 3);
+  const base = prom.mesesConDatos > 0
+    ? prom.porCategoria
+    : Object.fromEntries(monthStats(transactions, key).porCategoria.map(c => [c.categoria, c.monto]));
+  return Object.fromEntries(
+    Object.entries(base)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => [k, Math.ceil(v / 1000) * 1000])
+  );
 };

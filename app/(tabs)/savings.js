@@ -9,6 +9,7 @@ import {
   Modal,
   RefreshControl
 } from 'react-native';
+import { theme } from '../../src/styles/theme';
 import { PLACEHOLDER_COLOR } from '../../src/styles/global';
 import { useFocusEffect } from '@react-navigation/native';
 import { getDocs, doc, getDoc, setDoc, writeBatch, increment, arrayUnion } from 'firebase/firestore';
@@ -264,7 +265,6 @@ export default function SavingsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>Ahorros</Text>
 
       {/* Saldos */}
       <View style={styles.savingsGrid}>
@@ -292,7 +292,7 @@ export default function SavingsScreen() {
         </Text>
 
         {plan?.vencida && (
-          <Text style={[styles.metaHint, { color: '#dc3545', fontWeight: 'bold' }]}>
+          <Text style={[styles.metaHint, { color: theme.danger, fontWeight: 'bold' }]}>
             La fecha de esta meta ya pasó ({plan.faltaAnio > 0 ? `faltaron ${formatCurrency(plan.faltaAnio)}` : '¡se cumplió!'}). Poné una meta nueva.
           </Text>
         )}
@@ -334,7 +334,7 @@ export default function SavingsScreen() {
             )}
 
             {plan.capacidad !== null && plan.faltaAnio > 0 && (
-              <Text style={[styles.metaHint, plan.capacidad < plan.cuotaSiguientes && { color: '#dc3545', fontWeight: 'bold' }]}>
+              <Text style={[styles.metaHint, plan.capacidad < plan.cuotaSiguientes && { color: theme.danger, fontWeight: 'bold' }]}>
                 {plan.capacidad < plan.cuotaSiguientes
                   ? `⚠️ Según sus ingresos y gastos les sobran unos ${formatCurrency(plan.capacidad)} por mes: no alcanza para la meta sin recortar gastos.`
                   : `✅ Según sus ingresos y gastos les sobran unos ${formatCurrency(plan.capacidad)} por mes: la meta es alcanzable.`}
@@ -357,7 +357,7 @@ export default function SavingsScreen() {
                     <Text style={styles.colMes}>
                       {monthLabel(f.key)}{f.estado === 'actual' ? ' (hoy)' : ''}
                     </Text>
-                    <Text style={[styles.colNum, f.aporte < 0 && { color: '#dc3545' }]}>
+                    <Text style={[styles.colNum, f.aporte < 0 && { color: theme.danger }]}>
                       {f.estado === 'futuro' ? '—' : formatCurrency(f.aporte)}
                     </Text>
                     <Text style={styles.colNum}>
@@ -408,7 +408,7 @@ export default function SavingsScreen() {
             </Text>
             <View style={styles.metaEditRow}>
               {editandoMeta && (
-                <TouchableOpacity style={[styles.smallButton, { backgroundColor: '#6c757d' }]} onPress={() => setEditandoMeta(false)}>
+                <TouchableOpacity style={[styles.smallButton, { backgroundColor: theme.textSecondary }]} onPress={() => setEditandoMeta(false)}>
                   <Text style={styles.smallButtonText}>Cancelar</Text>
                 </TouchableOpacity>
               )}
@@ -472,7 +472,7 @@ export default function SavingsScreen() {
                 )}
               </View>
               <View style={styles.historyAmount}>
-                <Text style={[styles.historyValue, { color: entra ? '#28a745' : '#dc3545' }]}>
+                <Text style={[styles.historyValue, { color: entra ? theme.success : theme.danger }]}>
                   {entra ? '+' : '-'}
                   {esUSD ? `US$ ${movimiento.monto.toFixed(2)}` : formatCurrency(movimiento.monto)}
                 </Text>
@@ -555,17 +555,17 @@ export default function SavingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa', padding: 15 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 20 },
+  container: { flex: 1, backgroundColor: theme.bg, padding: 15 },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.text, marginBottom: 20 },
   savingsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   savingsCard: { width: '48.5%', padding: 16, borderRadius: 12, alignItems: 'center' },
-  pesosCard: { backgroundColor: '#28a745' },
+  pesosCard: { backgroundColor: theme.success },
   usdCard: { backgroundColor: '#17a2b8' },
   savingsTitle: { color: 'white', fontSize: 13, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
   savingsAmount: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   savingsSubtitle: { color: 'white', fontSize: 12, opacity: 0.9, marginTop: 4 },
-  infoBox: { backgroundColor: '#eef0fd', borderRadius: 8, padding: 10, marginBottom: 15 },
-  infoText: { fontSize: 13, color: '#333' },
+  infoBox: { backgroundColor: '#eef0fd', borderRadius: 10, padding: 10, marginBottom: 15 },
+  infoText: { fontSize: 13, color: theme.text },
   metaCard: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -579,16 +579,16 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  metaTitle: { fontSize: 17, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  metaTitle: { fontSize: 17, fontWeight: 'bold', color: theme.text, marginBottom: 10 },
   metaRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   metaAmount: { fontSize: 22, fontWeight: 'bold', color: '#17a2b8' },
   metaOf: { fontSize: 14, color: '#666' },
   metaBarBg: { height: 12, backgroundColor: '#e9ecef', borderRadius: 6, overflow: 'hidden', marginVertical: 8 },
   metaBarFill: { height: '100%', backgroundColor: '#17a2b8', borderRadius: 6 },
   metaHint: { fontSize: 12, color: '#666', marginTop: 4, lineHeight: 17 },
-  cuotaBox: { backgroundColor: '#f1fafb', borderRadius: 8, padding: 12, marginTop: 10 },
+  cuotaBox: { backgroundColor: '#f1fafb', borderRadius: 10, padding: 12, marginTop: 10 },
   cuotaLabel: { fontSize: 13, color: '#555' },
-  cuotaValue: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 2 },
+  cuotaValue: { fontSize: 20, fontWeight: 'bold', color: theme.text, marginTop: 2 },
   metaForm: {
     marginTop: 14,
     paddingTop: 12,
@@ -597,84 +597,84 @@ const styles = StyleSheet.create({
   },
   metaEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   linkButton: { paddingVertical: 6, marginTop: 4 },
-  linkText: { color: '#667eea', fontWeight: '600', fontSize: 13 },
-  tabla: { marginTop: 8, borderWidth: 1, borderColor: '#eee', borderRadius: 8, overflow: 'hidden' },
+  linkText: { color: theme.accent, fontWeight: '600', fontSize: 13 },
+  tabla: { marginTop: 8, borderWidth: 1, borderColor: '#eee', borderRadius: 10, overflow: 'hidden' },
   filaMes: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#f3f3f3' },
-  filaHeader: { backgroundColor: '#f8f9fa' },
+  filaHeader: { backgroundColor: theme.bg },
   filaActual: { backgroundColor: '#fff8e1' },
   headerText: { fontWeight: 'bold', color: '#555' },
-  colMes: { flex: 1.1, fontSize: 12, color: '#333' },
-  colNum: { flex: 1, fontSize: 12, color: '#333', textAlign: 'right' },
+  colMes: { flex: 1.1, fontSize: 12, color: theme.text },
+  colNum: { flex: 1, fontSize: 12, color: theme.text, textAlign: 'right' },
   planBox: { marginTop: 12, padding: 10, backgroundColor: '#e9f7ef', borderRadius: 8 },
   planTitle: { fontSize: 13, fontWeight: 'bold', color: '#1e7e34', marginBottom: 6 },
-  planItem: { fontSize: 13, color: '#333', marginBottom: 4 },
+  planItem: { fontSize: 13, color: theme.text, marginBottom: 4 },
   cotizacionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   cotizacionText: { flex: 1, fontSize: 13, color: '#555' },
   cotizacionInput: {
     width: 80,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: theme.border,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
     fontSize: 13,
     backgroundColor: 'white',
   },
-  smallButton: { backgroundColor: '#667eea', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 6, justifyContent: 'center' },
+  smallButton: { backgroundColor: theme.accent, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 6, justifyContent: 'center' },
   smallButtonText: { color: 'white', fontWeight: '600', fontSize: 13 },
-  addButton: { backgroundColor: '#17a2b8', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 20 },
+  addButton: { backgroundColor: '#17a2b8', padding: 15, borderRadius: 10, alignItems: 'center', marginBottom: 20 },
   addButtonText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: theme.text, marginBottom: 15 },
   emptyState: { backgroundColor: 'white', padding: 40, borderRadius: 12, alignItems: 'center' },
-  emptyStateText: { fontSize: 16, color: '#6c757d' },
+  emptyStateText: { fontSize: 16, color: theme.textSecondary },
   historyItem: {
     backgroundColor: 'white',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     borderLeftWidth: 4,
   },
-  ingresoItem: { borderLeftColor: '#28a745' },
-  egresoItem: { borderLeftColor: '#dc3545' },
+  ingresoItem: { borderLeftColor: theme.success },
+  egresoItem: { borderLeftColor: theme.danger },
   historyInfo: { flex: 1, marginRight: 10 },
-  historyDesc: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 5 },
+  historyDesc: { fontSize: 15, fontWeight: '600', color: theme.text, marginBottom: 5 },
   historyMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  historyDate: { fontSize: 12, color: '#6c757d' },
-  historyType: { fontSize: 12, color: '#667eea', fontWeight: '600' },
+  historyDate: { fontSize: 12, color: theme.textSecondary },
+  historyType: { fontSize: 12, color: theme.accent, fontWeight: '600' },
   historyCotizacion: { fontSize: 11, color: '#999', fontStyle: 'italic' },
   historyAmount: { alignItems: 'flex-end' },
   historyValue: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
-  historyConversion: { fontSize: 12, color: '#6c757d' },
+  historyConversion: { fontSize: 12, color: theme.textSecondary },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20, maxHeight: '85%', width: '100%', maxWidth: 480, alignSelf: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 15, textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.text, marginBottom: 15, textAlign: 'center' },
   segmentedGrid: { flexDirection: 'row', gap: 8, marginBottom: 15 },
   segment: {
     flex: 1,
     padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: theme.bg,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderColor: theme.border,
   },
   segmentActive: { backgroundColor: '#17a2b8', borderColor: '#17a2b8' },
-  segmentText: { fontSize: 14, fontWeight: '600', color: '#495057' },
+  segmentText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
   segmentTextActive: { color: 'white' },
   inputGroup: { marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', color: '#495057', marginBottom: 8 },
-  input: { borderWidth: 2, borderColor: '#dee2e6', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: 'white' },
+  label: { fontSize: 14, fontWeight: '600', color: theme.textSecondary, marginBottom: 8 },
+  input: { borderWidth: 2, borderColor: theme.border, borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: 'white' },
   picker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pickerOption: { padding: 10, backgroundColor: '#f8f9fa', borderRadius: 8, borderWidth: 2, borderColor: '#dee2e6' },
-  pickerOptionActive: { backgroundColor: '#667eea', borderColor: '#667eea' },
-  pickerText: { fontSize: 13, color: '#495057' },
+  pickerOption: { padding: 10, backgroundColor: theme.bg, borderRadius: 10, borderWidth: 2, borderColor: theme.border },
+  pickerOptionActive: { backgroundColor: theme.accent, borderColor: theme.accent },
+  pickerText: { fontSize: 13, color: theme.textSecondary },
   pickerTextActive: { color: 'white', fontWeight: '600' },
   modalButtons: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  modalButton: { flex: 1, padding: 15, borderRadius: 8, alignItems: 'center' },
-  cancelButton: { backgroundColor: '#6c757d' },
-  submitButton: { backgroundColor: '#28a745' },
+  modalButton: { flex: 1, padding: 15, borderRadius: 10, alignItems: 'center' },
+  cancelButton: { backgroundColor: theme.textSecondary },
+  submitButton: { backgroundColor: theme.success },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
 });

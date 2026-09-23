@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { PLACEHOLDER_COLOR } from '../../src/styles/global';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../src/styles/theme';
 import { getDoc, getDocs, doc, writeBatch, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { ensureHousehold, dataCol, dataDoc } from '../../src/services/household';
@@ -225,6 +228,14 @@ const ICONOS = {
   ahorro: '🐷',
 };
 
+const ICONOS_TIPO = {
+  egreso: 'arrow-down',
+  ingreso: 'arrow-up',
+  transferencia: 'swap-horizontal',
+  pago_tarjeta: 'card-outline',
+  ahorro: 'wallet-outline',
+};
+
 export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -235,6 +246,8 @@ export default function TransactionsScreen() {
   const [saving, setSaving] = useState(false);
 
   // Estados del formulario
+  const params = useLocalSearchParams();
+  const scrollRef = useRef(null);
   const [tipo, setTipo] = useState('egreso');
   const [cuentaId, setCuentaId] = useState('');
   const [categoria, setCategoria] = useState('HOGAR');
@@ -250,6 +263,13 @@ export default function TransactionsScreen() {
   const [savings, setSavings] = useState({ pesos: 0 });
   const [direccionAhorro, setDireccionAhorro] = useState('guardar');
   const [totalTarjeta, setTotalTarjeta] = useState('');
+
+  useEffect(() => {
+    if (params.tipo && TIPOS[params.tipo]) {
+      changeTipo(params.tipo);
+      scrollRef.current?.scrollTo?.({ y: 0, animated: true });
+    }
+  }, [params.t]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -493,7 +513,7 @@ export default function TransactionsScreen() {
       const extra = transactionData.cuotas > 1
         ? `\n${transactionData.cuotas} cuotas de ${formatCurrency(transactionData.montoCuota)} desde ${monthLabel(transactionData.primerMesCuota)}`
         : '';
-      Alert.alert('Éxito', `Transacción registrada correctamente${extra}`);
+      Alert.alert('Éxito', `Movimiento registrado${extra}`);
       resetForm();
       loadData();
 
@@ -622,17 +642,17 @@ export default function TransactionsScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>💸 Transacciones</Text>
 
       {/* Formulario de transacción */}
       <View style={styles.card}>
-        <Text style={styles.formTitle}>Nueva Transacción</Text>
+        <Text style={styles.formTitle}>Nuevo movimiento</Text>
 
         {/* Tipo de Transacción */}
         <View style={styles.formSection}>
@@ -644,8 +664,9 @@ export default function TransactionsScreen() {
                 style={[styles.segment, tipo === key && styles.segmentActive]}
                 onPress={() => changeTipo(key)}
               >
+                <Ionicons name={ICONOS_TIPO[key]} size={18} color={tipo === key ? 'white' : theme.textSecondary} />
                 <Text style={[styles.segmentText, tipo === key && styles.segmentTextActive]}>
-                  {ICONOS[key]} {label}
+                  {label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -829,7 +850,7 @@ export default function TransactionsScreen() {
               if (disponible === null) return null;
               const restante = disponible - montoNum;
               return (
-                <Text style={[styles.help, restante < 0 && { color: '#dc3545', fontWeight: 'bold' }]}>
+                <Text style={[styles.help, restante < 0 && { color: theme.danger, fontWeight: 'bold' }]}>
                   {restante < 0
                     ? `Supera el disponible por ${formatCurrency(-restante)}`
                     : `Después de esta compra te quedan ${formatCurrency(restante)} disponibles`}
@@ -1100,13 +1121,13 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.bg,
     padding: 15,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1124,7 +1145,7 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1134,13 +1155,13 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
     marginBottom: 10,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
     marginBottom: 8,
   },
   help: {
@@ -1149,15 +1170,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   linkText: {
-    color: '#667eea',
+    color: theme.accent,
     fontWeight: '600',
     fontSize: 13,
     marginTop: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: 10,
     padding: 12,
     fontSize: 16,
     backgroundColor: 'white',
@@ -1177,20 +1198,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '45%',
     paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#dee2e6',
-    backgroundColor: '#f8f9fa',
+    borderColor: theme.border,
+    backgroundColor: theme.bg,
   },
   segmentActive: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6c757d',
+    color: theme.textSecondary,
   },
   segmentTextActive: {
     color: 'white',
@@ -1204,7 +1228,7 @@ const styles = StyleSheet.create({
   },
   ahorroText: {
     fontSize: 13,
-    color: '#333',
+    color: theme.text,
     marginTop: 8,
   },
   // Cuotas
@@ -1227,16 +1251,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: theme.border,
   },
   chipActive: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: theme.accent,
+    borderColor: theme.accent,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
   },
   chipTextActive: {
     color: 'white',
@@ -1254,7 +1278,7 @@ const styles = StyleSheet.create({
   primerMesText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     minWidth: 120,
     textAlign: 'center',
   },
@@ -1263,7 +1287,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   miniArrowText: {
-    color: '#667eea',
+    color: theme.accent,
     fontWeight: 'bold',
   },
   cuotasResumen: {
@@ -1284,15 +1308,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: 10,
     padding: 12,
     backgroundColor: 'white',
     minHeight: 50,
   },
   dropdownHeaderText: {
     fontSize: 16,
-    color: '#333',
+    color: theme.text,
     flex: 1,
   },
   dropdownPlaceholder: {
@@ -1302,7 +1326,7 @@ const styles = StyleSheet.create({
   },
   dropdownArrow: {
     fontSize: 12,
-    color: '#6c757d',
+    color: theme.textSecondary,
     marginLeft: 10,
   },
   dropdownBackdrop: {
@@ -1320,8 +1344,8 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: 10,
     marginTop: 5,
     maxHeight: 200,
     zIndex: 9999,
@@ -1342,20 +1366,20 @@ const styles = StyleSheet.create({
   dropdownItem: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f8f9fa',
+    borderBottomColor: theme.bg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   dropdownItemSelected: {
-    backgroundColor: '#667eea',
+    backgroundColor: theme.accent,
   },
   dropdownItemContent: {
     flex: 1,
   },
   dropdownItemText: {
     fontSize: 15,
-    color: '#333',
+    color: theme.text,
     fontWeight: '600',
   },
   dropdownItemTextSelected: {
@@ -1363,7 +1387,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemBalance: {
     fontSize: 13,
-    color: '#6c757d',
+    color: theme.textSecondary,
     marginTop: 4,
   },
   dropdownItemBalanceSelected: {
@@ -1376,10 +1400,10 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   cajaBadge: {
-    backgroundColor: '#28a745',
+    backgroundColor: theme.success,
   },
   tarjetaBadge: {
-    backgroundColor: '#ffc107',
+    backgroundColor: theme.warning,
   },
   accountTypeText: {
     fontSize: 10,
@@ -1395,19 +1419,19 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     minHeight: 50,
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#6c757d',
+    backgroundColor: theme.textSecondary,
   },
   submitButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: theme.success,
   },
   primaryButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: theme.accent,
   },
   buttonText: {
     color: 'white',
@@ -1429,13 +1453,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   balanceCard: {
-    backgroundColor: '#667eea',
+    backgroundColor: theme.accent,
   },
   incomeCard: {
-    backgroundColor: '#28a745',
+    backgroundColor: theme.success,
   },
   expenseCard: {
-    backgroundColor: '#dc3545',
+    backgroundColor: theme.danger,
   },
   summaryTitle: {
     color: 'white',
@@ -1458,7 +1482,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 15,
   },
   emptyState: {
@@ -1469,13 +1493,13 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6c757d',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   transactionItem: {
     backgroundColor: 'white',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1483,10 +1507,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
   },
   incomeItem: {
-    borderLeftColor: '#28a745',
+    borderLeftColor: theme.success,
   },
   expenseItem: {
-    borderLeftColor: '#dc3545',
+    borderLeftColor: theme.danger,
   },
   paymentItem: {
     borderLeftColor: '#17a2b8',
@@ -1498,12 +1522,12 @@ const styles = StyleSheet.create({
   transactionDesc: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.text,
     marginBottom: 4,
   },
   transactionMeta: {
     fontSize: 12,
-    color: '#6c757d',
+    color: theme.textSecondary,
     marginBottom: 4,
   },
   cuotasTag: {
@@ -1526,10 +1550,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   incomeAmount: {
-    color: '#28a745',
+    color: theme.success,
   },
   expenseAmount: {
-    color: '#dc3545',
+    color: theme.danger,
   },
   paymentAmount: {
     color: '#17a2b8',
@@ -1537,7 +1561,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: '#dc3545',
+    backgroundColor: theme.danger,
     borderRadius: 5,
   },
   deleteButtonText: {
@@ -1563,7 +1587,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1573,11 +1597,11 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
     marginBottom: 5,
   },
   detailValue: {
     fontSize: 16,
-    color: '#333',
+    color: theme.text,
   },
 });

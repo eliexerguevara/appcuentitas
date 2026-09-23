@@ -9,6 +9,7 @@ import {
   Platform,
   Share,
 } from 'react-native';
+import { theme } from '../../src/styles/theme';
 import { PLACEHOLDER_COLOR } from '../../src/styles/global';
 import { useFocusEffect } from '@react-navigation/native';
 import { auth } from '../../firebase/config';
@@ -109,7 +110,6 @@ export default function HouseholdScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>👥 Hogar compartido</Text>
 
       {household ? (
         <>
@@ -198,26 +198,26 @@ export default function HouseholdScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.bg,
     padding: 15,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 20,
     textAlign: 'center',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 8,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
     marginTop: 12,
     marginBottom: 6,
   },
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   member: {
     fontSize: 14,
-    color: '#333',
+    color: theme.text,
     marginBottom: 4,
   },
   code: {
@@ -238,15 +238,15 @@ const styles = StyleSheet.create({
     color: colors.primary,
     backgroundColor: '#eef0fd',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     textAlign: 'center',
     marginVertical: 8,
     letterSpacing: 1,
   },
   input: {
     borderWidth: 2,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: 10,
     padding: 12,
     fontSize: 16,
     marginVertical: 8,
@@ -254,12 +254,12 @@ const styles = StyleSheet.create({
   },
   button: {
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginVertical: 6,
   },
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: '#6c757d' },
+  secondary: { backgroundColor: theme.textSecondary },
   success: { backgroundColor: colors.success },
   danger: { backgroundColor: colors.danger },
   buttonText: {

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl
 } from 'react-native';
+import { theme } from '../../src/styles/theme';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
@@ -89,7 +90,6 @@ export default function SummaryScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.title}>Resumen Mensual</Text>
 
       <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
 
@@ -240,13 +240,13 @@ export default function SummaryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.bg,
     padding: 15,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -257,12 +257,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#dee2e6',
+    borderBottomColor: theme.border,
   },
   resumeTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
   },
   transactionCount: {
     fontSize: 14,
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
   },
   incomeCard: {
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 15,
   },
   categoryItem: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.text,
     flex: 1,
   },
   categoryPercentage: {
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   categoryAmount: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
   },
   barTrack: {
     height: 8,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   accountName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.text,
     marginBottom: 2,
   },
   accountType: {
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   accountBalance: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
   },
   emptyText: {
     textAlign: 'center',

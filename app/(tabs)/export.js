@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform
 } from 'react-native';
+import { theme } from '../../src/styles/theme';
 import { Alert } from '../../src/utils/dialog';
 import { esConsumo } from '../../src/utils/finance';
 import * as FileSystem from 'expo-file-system';
@@ -423,7 +424,6 @@ export default function ExportScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>📊 Importar y Exportar Datos</Text>
 
       {/* Sección Exportar */}
       <View style={styles.section}>
@@ -563,13 +563,13 @@ export default function ExportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.bg,
     padding: 15,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 20,
   },
   section: {
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.text,
     marginBottom: 10,
   },
   dangerTitle: {
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#6c757d',
+    color: theme.textSecondary,
     marginBottom: 15,
     lineHeight: 20,
   },
@@ -621,47 +621,47 @@ const styles = StyleSheet.create({
   },
   exportButton: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 10,
   },
   importButton: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 15,
   },
   backupButton: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 10,
   },
   deleteButton: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
   },
   helpButton: {
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.bg,
     borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderColor: theme.border,
   },
   primaryButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: theme.success,
   },
   dangerButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: theme.danger,
   },
   infoButton: {
     backgroundColor: '#17a2b8',
   },
   warningButton: {
-    backgroundColor: '#ffc107',
+    backgroundColor: theme.warning,
   },
   successButton: {
     backgroundColor: '#20c997',
@@ -672,16 +672,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   helpButtonText: {
-    color: '#495057',
+    color: theme.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
   helpBox: {
     backgroundColor: '#fff3cd',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#ffc107',
+    borderLeftColor: theme.warning,
   },
   helpTitle: {
     fontSize: 14,
@@ -710,15 +710,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
+    borderBottomColor: theme.border,
   },
   infoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#495057',
+    color: theme.textSecondary,
   },
   infoValue: {
     fontSize: 14,
-    color: '#6c757d',
+    color: theme.textSecondary,
   },
 });

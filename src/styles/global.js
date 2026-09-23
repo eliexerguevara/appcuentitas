@@ -3,9 +3,9 @@ import { StyleSheet, Platform } from 'react-native';
 export const globalStyles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
     ...Platform.select({
       web: {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -28,7 +28,7 @@ export const globalStyles = StyleSheet.create({
   },
   
   buttonPrimary: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#3b5bdb',
   },
   
   buttonText: {
@@ -54,11 +54,11 @@ export const globalStyles = StyleSheet.create({
 });
 
 export const colors = {
-  primary: '#667eea',
-  success: '#28a745',
-  danger: '#dc3545',
-  warning: '#ffc107',
-  info: '#17a2b8',
+  primary: '#3b5bdb',
+  success: '#2f9e44',
+  danger: '#e03131',
+  warning: '#e8890c',
+  info: '#1c7ed6',
   dark: '#343a40',
   light: '#f8f9fa'
 };
