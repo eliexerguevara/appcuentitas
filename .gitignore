@@ -44,3 +44,9 @@ app-example
 
 # Firebase
 .firebase/
+
+# Proyecto Android (TWA): artefactos de compilación
+android-twa/.gradle/
+android-twa/build/
+android-twa/app/build/
+android-twa/local.properties

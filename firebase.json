@@ -4,8 +4,9 @@
   },
   "hosting": {
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*"],
+    "ignore": ["firebase.json"],
     "cleanUrls": true,
+    "headers": [{ "source": "/.well-known/assetlinks.json", "headers": [{ "key": "Content-Type", "value": "application/json" }] }],
     "rewrites": [{ "source": "**", "destination": "/index.html" }]
   }
 }

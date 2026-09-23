@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.cuentitas.app",
+    "sha256_cert_fingerprints": ["AB:FF:19:32:DF:57:0B:7D:59:BB:68:50:50:E6:05:A5:D9:35:C5:FE:87:34:36:AA:2B:8C:E3:00:63:BD:B0:3A"]
+  }
+}]

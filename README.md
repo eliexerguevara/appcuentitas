@@ -46,3 +46,19 @@ firebase deploy --only hosting
 ```
 
 Para publicar también las reglas de seguridad: `firebase deploy --only firestore:rules,hosting`.
+
+## App para Android (APK)
+
+La carpeta `android-twa/` es una app Android mínima que abre la web publicada a pantalla completa usando Chrome (Trusted Web Activity). Al publicar cambios en la web, la app se actualiza sola.
+
+- La clave de firma **no está en el repositorio**: se guarda en `../CuentitasAndroid-firma/` (hacer copia de seguridad).
+- El sitio publica `/.well-known/assetlinks.json` (en `public/`) para que Android confíe en la app y la abra sin barra de dirección.
+
+Para compilar (con el JDK de Android Studio):
+
+```bash
+cd android-twa
+gradlew.bat assembleRelease
+```
+
+El APK queda en `android-twa/app/build/outputs/apk/release/app-release.apk`.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cuentitas</string>
+    <!-- Vincula la app con el sitio para abrirlo sin barra de dirección -->
+    <string name="asset_statements">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {\"namespace\": \"web\", \"site\": \"https://cuentitas-b57b4.web.app\"}
+        }]
+    </string>
+</resources>

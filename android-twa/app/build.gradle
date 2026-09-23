@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+}
+
+// La clave de firma vive fuera del proyecto (no se sube a GitHub)
+def keystoreProps = new Properties()
+def keystoreFile = file('../../../CuentitasAndroid-firma/keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'com.cuentitas.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.cuentitas.app'
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+
+        // Dirección de la app web que se abre
+        manifestPlaceholders = [
+            hostName: 'cuentitas-b57b4.web.app',
+            defaultUrl: 'https://cuentitas-b57b4.web.app/',
+        ]
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
